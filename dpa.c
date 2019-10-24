@@ -21,19 +21,22 @@ unsigned char d[D];			// Input/data vector of size 600 (inputs5.dat)
 
 unsigned char V[D*K];		// Hypothetical intermediate values matrix
 unsigned char k[K];			// Key vector with all possible values of k
-unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)
+unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)... H is (D x K)
 
-int R[K*55];				// Correlation coefficient values of H and T
+float R[K*55];				// Correlation coefficient values of H and T
 float H_means[K];			// Mean values for all hypo power consumptions of all key choices
 float T_means[55];
 float H_s[K];				// standard deviation
+
+float h[D];
+float t[D];
 
 /* 
 	Prototypes
 */
 void populate_vector(char * file,  unsigned char * vector, int size);			// Read data into arrays
-void subBytes(unsigned char * state, unsigned char * S);				// S-box lookup
-
+void subBytes(unsigned char * state, unsigned char * S);						// S-box lookup
+float myCorr(float * h, float * t, int N);
 
 int main(){
 	int i;
@@ -83,42 +86,17 @@ int main(){
 	}
 	
 	// Step 5: Compare hypothetical power consumption values, H, with prower traces, T using the correlation coefficient
-	
-	// Calculate mean values of H and T columns 
-	float sum;
-	for(j=0; j<K; j++){
-		sum = 0;
-		
-		for(i=0; i<D; i++){
-			sum += (float) H[i*K+j];
+	int d;
+	for(i=0; i<K; i++){
+		for(d=0; d<D; d++){
+			h[d] = H[d*K+i];
 		}
-		H_means[j] = sum/D;
-		printf("H_means[%d]=%f\n", j, H_means[j]);
-	}
-	
-	for(j=0; j<55; j++){
-		sum = 0;
-		
-		for(i=0; i<D; i++){
-			sum += T[i*55+j];
+		for(j=0; j<55; j++){
+			for(d=0; d<D; d++){
+				t[d] = T[d*55+j];
+			}
+			R[i*55+j] = myCorr(h,t,D);
 		}
-		T_means[j] = sum/D;
-		printf("T_means[%d]=%f\n", j, T_means[j]);
-	}
-	
-	// Calculate std deviation of H and T
-	double temp;
-	for(j=0; j<K; j++){
-		sum = 0;
-		for(i=0; i<K; i++){
-			temp = (double) (H[i*K+j] - H_means[j]);
-			sum += (float) pow(temp, 2);	
-		}
-		H_s[j] = sqrt(sum/(K-1)); 
-	}
-	
-	// Compute correlation coefficient
-	// Z_h[i] = (H[i]-H_means[i]) / H_s[i]
 	}
 	
 	
@@ -131,6 +109,9 @@ int main(){
 			printf("d[%d]=%f\n", i, d[i]);
 		}
 		puts(" ");
+		for(i=0; i<(K*55); i++){
+			printf("R[%d]=%f\n", i, R[i]);
+		}
 	#endif
 	
 	return 0;
@@ -182,4 +163,28 @@ void subBytes(unsigned char * state, unsigned char * S){
 	}
 }
 
+float myCorr(float * h, float * t, int N){
+	int i;
+	float meanh, meant, num, denomh, denomt,corrCoeff;
+	meanh = 0;
+	meant = 0;
+	for (i=0; i<N; i++){
+		meanh += h[i];
+		meant += t[i];
+	}
+	meanh /= N;
+	meant /= N;
+	
+	num = 0;
+	denomh = 0;
+	denomt = 0;
+	for (i=0; i<N; i++){
+		num += (h[i]-meanh)*(t[i]-meant);
+		denomh += (h[i]-meanh)*(h[i]-meanh);
+		denomt += (t[i]-meant)*(t[i]-meant);
+	}
+	
+	corrCoeff = num/sqrt(denomh*denomt);
+	return corrCoeff;
+}
 
