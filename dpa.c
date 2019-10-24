@@ -14,54 +14,44 @@
 //#define TESTPRINT
 
 
-float T[D*55]; 	// Traces matrix of size 600x55 - no values exceed the number 256
-float d[D];		// Input/data vector of size 600 (inputs5.dat)
+unsigned char T[D*55]; 		// Traces matrix of size 600x55 - no values exceed the number 256
+unsigned char d[D];			// Input/data vector of size 600 (inputs5.dat)
 
-int V[D*K];		// Hypo intermediate values matrix
-int k[K];		// Key vector with all possible values of k
+unsigned char V[D*K];		// Hypo intermediate values matrix
+unsigned char k[K];			// Key vector with all possible values of k
 
 /* 
 	Prototypes
 */
-void populate_vector(char * file, float * vector);			// Read data into arrays
-void subBytes(unsigned char * state, unsigned char * S);	// S-box lookup
+void populate_vector(char * file,  unsigned char * vector, int size);			// Read data into arrays
+void subBytes(unsigned char * state, unsigned char * S);				// S-box lookup
 
 
 int main(){
 	int i;
 	
-	populate_vector("T5.dat", T);
-	populate_vector("inputs5.dat", d);
+	populate_vector("T5.dat", T, D*55);
+	populate_vector("inputs5.dat", d, D);
 	
-	// Cast float arrays to int for later processing
-	int int_d[D];
-	for(i=0; i<D; i++){
-		int_d[i] = (int) d[i]; 
-	}
-	
-	// Calculate all values of the key, where 1 <= k <= 2^8
+	// Calculate all values of the key, where 1 <= k <= 2^8 - or is it? currently 0 <= k <= 2^8-1
 	for(i=0; i<K; i++){
-		k[i] = i+1; 
-		//printf("k[%d]= %x\n", i, k[i]);
+		k[i] = i; 
+		printf("k[%d]= %x\n", i, k[i]);
 	}
 	
 	// Step 3: Calculate hypothetical intermediate values f(d,k):
-	// 			a) xor'ing inputs with every key values
-	//			b) S-box lookup with prev value
 	int j;
 	for(i=0; i<D; i++){
 		for(j=0; j<K; j++){
 			
-			// for each data input xor with all key values
-			V[i*K+j] = ((int) d[i]) ^ k[j];
+			// For each data input xor with all key values
+			V[i*K+j] = d[i] ^ k[j];
+			//printf("%x XOR %x = V[%d]=%x\n", d[i], k[j], i*K+j, V[i*K+j]);
 			
-			// make S-box lookup with computed value
-			subBytes(V[i*K+j], S);
+			// Make S-box lookup with computed value
+			subBytes(&V[i*K+j], S);
+			//printf("V[%d]=%x\n",i*K+j, V[i*K+j]);
 			
-			
-			/*printf("d[%d]=%x   ", i, (unsigned int) d[i]);
-			printf("k[%d]=%x   ", j, (unsigned int) k[j]);
-			printf("V[%d]=%x\n", i*K+j, (unsigned int) V[i*K+j]);*/
 		}
 	}	
 
@@ -82,20 +72,28 @@ int main(){
 /*
 	Function definitons
 */
-void populate_vector(char * file, float * vector){
+void populate_vector(char * file, unsigned char * vector, int size){
 	
 	int i;
 	FILE *fp;
+	float temp_arr[size];
 
+	// Read data from file stream
 	fp = fopen(file, "r");
 	if(fp == NULL){
 		perror("Error");
 	} else {
 		i = 0;
-		while(fscanf(fp, "%f %*c", vector+i) == 1){
+		while(fscanf(fp, "%f %*c", &temp_arr[i]) == 1){	// Skip comma and newlines
 			i++;
 		}
 		fclose(fp);
+	}
+	
+	// Convert to unsigned char of 1 byte
+	for(i=0; i<size; i++){
+		vector[i] = (unsigned char) temp_arr[i];
+		printf("vector[%d]=%x\n", i, vector[i]);
 	}
 }
 void subBytes(unsigned char * state, unsigned char * S){
