@@ -1,8 +1,10 @@
 /*	
 	Course: 02255 Practical cryptology E19 @ DTU
 	
-	Handin #2 DPA 
+	Handin #2: DPA attack on AES-128
 	Author:	Christina Juulmann study no. 170735
+
+	Found key byte = 161 (base 10) = 0xA1 (base 16)
 */
 
 #include <stdio.h>
@@ -21,14 +23,11 @@ unsigned char d[D];			// Input/data vector of size 600 (inputs5.dat)
 
 unsigned char V[D*K];		// Hypothetical intermediate values matrix
 unsigned char k[K];			// Key vector with all possible values of k
-unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)... H is (D x K)
+unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)
 
-float R[K*55];				// Correlation coefficient values of H and T
-float H_means[K];			// Mean values for all hypo power consumptions of all key choices
-float T_means[55];
-float H_s[K];				// standard deviation
+float R[K*55];				// Correlation coefficient values of H,T
 
-float h[D];
+float h[D];					// Column buffer of H and T (ith column of H and jth column of T)
 float t[D];
 
 /* 
@@ -36,7 +35,7 @@ float t[D];
 */
 void populate_vector(char * file,  unsigned char * vector, int size);			// Read data into arrays
 void subBytes(unsigned char * state, unsigned char * S);						// S-box lookup
-float myCorr(float * h, float * t, int N);
+float myCorr(float * h, float * t, int N);										// Correlation coefficent calculation
 
 int main(){
 	int i;
@@ -57,62 +56,51 @@ int main(){
 		fclose(fp);
 	}
 	
-	// Calculate all values of the key
+	// Compute all values of key to k array
 	for(i=0; i<K; i++){
 		k[i] = i; 
-		//printf("k[%d]= %x\n", i, k[i]);
 	}
 	
-	// Step 3: Calculate hypothetical intermediate values f(d,k):
+	// Compute hypothetical intermediate values f(d,k):
 	int j;
 	for(i=0; i<D; i++){
 		for(j=0; j<K; j++){
 			
 			// For each data input xor with all key values
 			V[i*K+j] = d[i] ^ k[j];
-			//printf("%x XOR %x = V[%d]=%x\n", d[i], k[j], i*K+j, V[i*K+j]);
 			
-			// Make S-box lookup with computed value
+			// Make S-box lookup from previous values and save to V
 			subBytes(&V[i*K+j], S);
-			//printf("V[%d]=%x\n",i*K+j, V[i*K+j]);
-			
 		}
 	}	
 
-	// Step 4: Mapping intermediate values to power consumptions using the Hamming-weight model
+	// Mapping of intermediate values to power consumptions using the Hamming-weight model
 	for(i=0; i<(D*K); i++){
 		H[i] = __builtin_popcount(V[i]);
-		//printf("H[%d]=%d\n", i, H[i]);
 	}
 	
-	// Step 5: Compare hypothetical power consumption values, H, with prower traces, T using the correlation coefficient
+	// Compare hypothetical power consumption values (H) with prower traces (T) using the correlation coefficient
 	int d;
 	for(i=0; i<K; i++){
 		for(d=0; d<D; d++){
-			h[d] = H[d*K+i];
+			h[d] = H[d*K+i];		// Retrieve ith column of H
 		}
 		for(j=0; j<55; j++){
 			for(d=0; d<D; d++){
-				t[d] = T[d*55+j];
+				t[d] = T[d*55+j];	// Retrieve jth column of T
 			}
-			R[i*55+j] = myCorr(h,t,D);
+			R[i*55+j] = myCorr(h,t,D);	// Correlate retreived columns
 		}
 	}
 	
+	// Write correlation coefficients (in R matrix) to text file
+	FILE *ptr;
+	ptr = fopen("corr_coefs.txt", "w");
 	
-	#ifdef TESTPRINT
-		for(i=0; i<(D*55); i++){
-			printf("T[%d]= %f\n", i, T[i]);
-		}
-		puts(" ");
-		for(i=0; i<D; i++){
-			printf("d[%d]=%f\n", i, d[i]);
-		}
-		puts(" ");
-		for(i=0; i<(K*55); i++){
-			printf("R[%d]=%f\n", i, R[i]);
-		}
-	#endif
+	for(i=0; i<(K*55); i++)
+		fprintf(ptr, "%f\n", R[i]);
+	
+	fclose(ptr);
 	
 	return 0;
 }
@@ -138,7 +126,7 @@ void populate_vector(char * file, unsigned char * vector, int size){
 		fclose(fp);
 	}
 	
-	// Convert to unsigned char for 1 byte sizes
+	// Convert to unsigned char for 1 byte sizing and compability with subBytes
 	for(i=0; i<size; i++){
 		vector[i] = (unsigned char) temp_arr[i];
 		printf("vector[%d]=%x\n", i, vector[i]);
@@ -162,12 +150,14 @@ void subBytes(unsigned char * state, unsigned char * S){
 		state[i] = S[idx];
 	}
 }
-
 float myCorr(float * h, float * t, int N){
+	
 	int i;
-	float meanh, meant, num, denomh, denomt,corrCoeff;
+	float meanh, meant, num, denomh, denomt, corrCoeff;
+	
 	meanh = 0;
 	meant = 0;
+	
 	for (i=0; i<N; i++){
 		meanh += h[i];
 		meant += t[i];
@@ -179,6 +169,7 @@ float myCorr(float * h, float * t, int N){
 	denomh = 0;
 	denomt = 0;
 	for (i=0; i<N; i++){
+		
 		num += (h[i]-meanh)*(t[i]-meant);
 		denomh += (h[i]-meanh)*(h[i]-meanh);
 		denomt += (t[i]-meant)*(t[i]-meant);
