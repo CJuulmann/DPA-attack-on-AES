@@ -1,8 +1,10 @@
 /*	
 	Course: 02255 Practical cryptology E19 @ DTU
 	
-	Handin #2 DPA 
+	Handin #2: DPA attack on AES-128
 	Author:	Christina Juulmann study no. 170735
+
+	Found key byte = 161 (base 10) = 0xA1 (base 16)
 */
 
 #include <stdio.h>
@@ -21,14 +23,11 @@ unsigned char d[D];			// Input/data vector of size 600 (inputs5.dat)
 
 unsigned char V[D*K];		// Hypothetical intermediate values matrix
 unsigned char k[K];			// Key vector with all possible values of k
-unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)... H is (D x K)
+unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)
 
-float R[K*55];				// Correlation coefficient values of H and T
-float H_means[K];			// Mean values for all hypo power consumptions of all key choices
-float T_means[55];
-float H_s[K];				// standard deviation
+float R[K*55];				// Correlation coefficient values of H,T
 
-float h[D];
+float h[D];					// Column buffer of H and T (ith column of H and jth column of T)
 float t[D];
 
 /* 
@@ -36,7 +35,7 @@ float t[D];
 */
 void populate_vector(char * file,  unsigned char * vector, int size);			// Read data into arrays
 void subBytes(unsigned char * state, unsigned char * S);						// S-box lookup
-float myCorr(float * h, float * t, int N);
+float myCorr(float * h, float * t, int N);										// Correlation coefficent calculation
 
 int main(){
 	int i;
@@ -57,13 +56,13 @@ int main(){
 		fclose(fp);
 	}
 	
-	// Calculate all values of the key
+	// Compute all values of key to k array
 	for(i=0; i<K; i++){
 		k[i] = i; 
 		//printf("k[%d]= %x\n", i, k[i]);
 	}
 	
-	// Step 3: Calculate hypothetical intermediate values f(d,k):
+	// Compute hypothetical intermediate values f(d,k):
 	int j;
 	for(i=0; i<D; i++){
 		for(j=0; j<K; j++){
@@ -79,7 +78,7 @@ int main(){
 		}
 	}	
 
-	// Step 4: Mapping intermediate values to power consumptions using the Hamming-weight model
+	// Mapping of intermediate values to power consumptions using the Hamming-weight model
 	for(i=0; i<(D*K); i++){
 		H[i] = __builtin_popcount(V[i]);
 		//printf("H[%d]=%d\n", i, H[i]);
@@ -99,6 +98,14 @@ int main(){
 		}
 	}
 	
+	// Write correlation coefficients (R) to file
+	FILE *ptr;
+	ptr = fopen("R.txt", "w");
+	
+	for(i=0; i<(K*55); i++)
+		fprintf(ptr, "%f\n", R[i]);
+	
+	fclose(ptr);
 	
 	#ifdef TESTPRINT
 		for(i=0; i<(D*55); i++){
