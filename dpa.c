@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "sbox.h"
+#include <math.h>
 
 
 #define D 600
@@ -22,9 +23,10 @@ unsigned char V[D*K];		// Hypothetical intermediate values matrix
 unsigned char k[K];			// Key vector with all possible values of k
 unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)
 
-unsigned char R[K*55];		// Correlation coefficient values of H and T
+int R[K*55];				// Correlation coefficient values of H and T
 float H_means[K];			// Mean values for all hypo power consumptions of all key choices
 float T_means[55];
+float H_s[K];				// standard deviation
 
 /* 
 	Prototypes
@@ -104,10 +106,20 @@ int main(){
 		printf("T_means[%d]=%f\n", j, T_means[j]);
 	}
 	
+	// Calculate std deviation of H and T
+	double temp;
+	for(j=0; j<K; j++){
+		sum = 0;
+		for(i=0; i<K; i++){
+			temp = (double) (H[i*K+j] - H_means[j]);
+			sum += (float) pow(temp, 2);	
+		}
+		H_s[j] = sqrt(sum/(K-1)); 
+	}
+	
 	// Compute correlation coefficient
-	
-	
-	
+	// Z_h[i] = (H[i]-H_means[i]) / H_s[i]
+	}
 	
 	
 	#ifdef TESTPRINT
