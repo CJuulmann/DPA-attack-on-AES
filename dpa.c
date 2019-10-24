@@ -15,12 +15,16 @@
 //#define TESTPRINT
 
 
-unsigned char T[D*55]; 		// Traces matrix of size 600x55 - no values exceed the number 256
+float T[D*55]; 				// Traces matrix of size 600x55 - 600 traces with 55 samples each
 unsigned char d[D];			// Input/data vector of size 600 (inputs5.dat)
 
-unsigned char V[D*K];		// Hypo intermediate values matrix
+unsigned char V[D*K];		// Hypothetical intermediate values matrix
 unsigned char k[K];			// Key vector with all possible values of k
-unsigned char H[D*K];		// Hypothetical power consumption values
+unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)
+
+unsigned char R[K*55];		// Correlation coefficient values of H and T
+float H_means[K];			// Mean values for all hypo power consumptions of all key choices
+float T_means[55];
 
 /* 
 	Prototypes
@@ -32,13 +36,26 @@ void subBytes(unsigned char * state, unsigned char * S);				// S-box lookup
 int main(){
 	int i;
 	
-	populate_vector("T5.dat", T, D*55);
+	// Retreive input data as unsigned chars (1 byte sizing)
 	populate_vector("inputs5.dat", d, D);
 	
-	// Calculate all values of the key, where 1 <= k <= 2^8 - or is it? currently 0 <= k <= 2^8-1
+	// Retreive Power traces
+	FILE *fp;
+	fp = fopen("T5.dat", "r");
+	if(fp == NULL){
+		perror("Error");
+	} else {
+		i = 0;
+		while(fscanf(fp, "%f %*c", &T[i]) == 1){	// Skip comma and newlines
+			i++;
+		}
+		fclose(fp);
+	}
+	
+	// Calculate all values of the key
 	for(i=0; i<K; i++){
 		k[i] = i; 
-		printf("k[%d]= %x\n", i, k[i]);
+		//printf("k[%d]= %x\n", i, k[i]);
 	}
 	
 	// Step 3: Calculate hypothetical intermediate values f(d,k):
@@ -60,8 +77,38 @@ int main(){
 	// Step 4: Mapping intermediate values to power consumptions using the Hamming-weight model
 	for(i=0; i<(D*K); i++){
 		H[i] = __builtin_popcount(V[i]);
-		printf("H[%d]=%d\n", i, H[i]);
+		//printf("H[%d]=%d\n", i, H[i]);
 	}
+	
+	// Step 5: Compare hypothetical power consumption values, H, with prower traces, T using the correlation coefficient
+	
+	// Calculate mean values of H and T columns 
+	float sum;
+	for(j=0; j<K; j++){
+		sum = 0;
+		
+		for(i=0; i<D; i++){
+			sum += (float) H[i*K+j];
+		}
+		H_means[j] = sum/D;
+		printf("H_means[%d]=%f\n", j, H_means[j]);
+	}
+	
+	for(j=0; j<55; j++){
+		sum = 0;
+		
+		for(i=0; i<D; i++){
+			sum += T[i*55+j];
+		}
+		T_means[j] = sum/D;
+		printf("T_means[%d]=%f\n", j, T_means[j]);
+	}
+	
+	// Compute correlation coefficient
+	
+	
+	
+	
 	
 	#ifdef TESTPRINT
 		for(i=0; i<(D*55); i++){
