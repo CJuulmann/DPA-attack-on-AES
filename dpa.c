@@ -21,21 +21,19 @@
 float T[D*55]; 				// Traces matrix of size 600x55 - 600 traces with 55 samples each
 unsigned char d[D];			// Input/data vector of size 600 (inputs5.dat)
 
-unsigned char V[D*K];		// Hypothetical intermediate values matrix
+unsigned char V[D*K];			// Hypothetical intermediate values matrix
 unsigned char k[K];			// Key vector with all possible values of k
-unsigned char H[D*K];		// Hypothetical power consumption values matrix (for HW model)
+unsigned char H[D*K];			// Hypothetical power consumption values matrix (for HW model)
 
 float R[K*55];				// Correlation coefficient values of H,T
 
-float h[D];					// Column buffer of H and T (ith column of H and jth column of T)
+float h[D];				// Column buffers of H and T (ith column of H and jth column of T)
 float t[D];
 
-/* 
-	Prototypes
-*/
+// Prototypes
 void populate_vector(char * file,  unsigned char * vector, int size);			// Read data into arrays
-void subBytes(unsigned char * state, unsigned char * S);						// S-box lookup
-float myCorr(float * h, float * t, int N);										// Correlation coefficent calculation
+void subBytes(unsigned char * state, unsigned char * S);				// S-box lookup
+float myCorr(float * h, float * t, int N);						// Correlation coefficent calculation
 
 int main(){
 	int i;
@@ -74,7 +72,7 @@ int main(){
 		}
 	}	
 
-	// Mapping of intermediate values to power consumptions using the Hamming-weight model
+	// Mapping of intermediate values to power consumptions using the Hamming-weight (HW) model
 	for(i=0; i<(D*K); i++){
 		H[i] = __builtin_popcount(V[i]);
 	}
@@ -105,9 +103,7 @@ int main(){
 	return 0;
 }
 
-/*
-	Function definitons
-*/
+// Function definitons
 void populate_vector(char * file, unsigned char * vector, int size){
 	
 	int i;
